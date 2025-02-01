@@ -25,7 +25,15 @@
    */
 	"browser": {
 		"binding": "BROWSER"
-	}
+	},
+
+	"kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "69c1e21e2db9480bb02380989f2d0f68",
+      "preview_id": "937f5d36f4694f4cbd1a630b1d4ec333"
+    }
+  ]
 
   /**
    * Environment Variables

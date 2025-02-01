@@ -3,6 +3,7 @@ import puppeteer from "@cloudflare/puppeteer";
 
 type Bindings = {
 	BROWSER: Fetcher;
+	KV: KVNamespace;
 };
 
 class OEmbedLinkHandler {
@@ -59,8 +60,21 @@ app.get('/oembed/:url{.+}', async (c) => {
 });
 
 app.get('/png/:url{.+}', async (c) => {
-	// Get oEmbed data
 	const url = c.req.param('url');
+
+	// Check our KV cache to see if we already have a result for this file
+	const cacheKey = `png-${btoa(url)}`;
+	const cache = c.env.KV;
+	const cachedResult = await cache.get(cacheKey, {type: 'arrayBuffer'});
+	if (cachedResult) {
+		c.header('Content-Type', 'image/png');
+		// TODO: Ideally we'd get this cache ttl from the KV metadata
+		c.header('Cache-Control', 'public, max-age=14400');
+		c.header('X-Debug-Cache-Control', 'public, max-age=14400');
+		return c.body(cachedResult);
+	}
+
+	// Get oEmbed data
 	const oembed = await getOembed(url);
 
 	if (oembed?.type === 'rich') {
@@ -77,16 +91,21 @@ app.get('/png/:url{.+}', async (c) => {
 
 		const target = (await page.$('body div')) || page;
 
-		let img = await target.screenshot({
+		const img = await target.screenshot({
 			// If we were able to find a selector, no need to apply fullPage.
 			// Otherwise, capture as much as possible.
 			fullPage: target === page,
 			captureBeyondViewport: true
 		});
+		const ttl = oembed['cache_age']??14400;
+		const cfTtl = (ttl/1000)>60 ? (ttl/1000) : 60; // Minimum TTL of a KV key is 60 seconds
+
+		// Cache the result in KV
+		await cache.put(cacheKey, img, {expirationTtl: cfTtl});
 
 		c.header('Content-Type', 'image/png');
-		c.header('Cache-Control', `public, max-age=${oembed['cache_age']??'14400'}`);
-		c.header('X-Debug-Cache-Control', `public, max-age=${oembed['cache_age']??'14400'}`);
+		c.header('Cache-Control', `public, max-age=${ttl}`);
+		c.header('X-Debug-Cache-Control', `public, max-age=${ttl}`);
 		return c.body(img);
 	} else {
 		// TODO: Fallback to generating an opengraph image if possible?
