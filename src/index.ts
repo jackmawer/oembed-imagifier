@@ -85,6 +85,8 @@ app.get('/png/:url{.+}', async (c) => {
 		});
 
 		c.header('Content-Type', 'image/png');
+		c.header('Cache-Control', `public, max-age=${oembed['cache_age']??'14400'}`);
+		c.header('X-Debug-Cache-Control', `public, max-age=${oembed['cache_age']??'14400'}`);
 		return c.body(img);
 	} else {
 		// TODO: Fallback to generating an opengraph image if possible?
