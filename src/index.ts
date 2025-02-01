@@ -47,6 +47,17 @@ const app = new Hono<{Bindings: Bindings}>();
 
 app.get('/', (c) => c.json({ message: 'Hello, World!' }));
 
+app.get('/oembed/:url{.+}', async (c) => {
+	const url = c.req.param('url');
+	const oembed = await getOembed(url);
+
+	if (oembed) {
+		return c.json(oembed);
+	} else {
+		return c.json({ error: 'No oEmbed available.' }, 400);
+	}
+});
+
 app.get('/png/:url{.+}', async (c) => {
 	// Get oEmbed data
 	const url = c.req.param('url');
@@ -62,8 +73,13 @@ app.get('/png/:url{.+}', async (c) => {
 			idleTime: 1000
 		});
 		await new Promise(r=>setTimeout(r, 1000));
-		let img = await page.screenshot({
-			fullPage: true,
+
+		const target = (await page.$('body div')) || page;
+
+		let img = await target.screenshot({
+			// If we were able to find a selector, no need to apply fullPage.
+			// Otherwise, capture as much as possible.
+			fullPage: target === page,
 			captureBeyondViewport: true
 		});
 
