@@ -76,9 +76,11 @@ app.get('/png/:url{.+}', async (c) => {
 
 	// Get oEmbed data
 	const oembed = await getOembed(url);
+	if (!oembed) return c.json({ error: 'No oEmbed available at the provided URL.' }, 400);
 
 	switch (oembed?.type) {
 		case 'rich':
+		case 'video': // Spec states that video must have html object like rich
 			const browser = await puppeteer.launch(c.env.BROWSER);
 			const page = await browser.newPage();
 			await page.setViewport({width: 600, height: 600});
@@ -115,11 +117,10 @@ app.get('/png/:url{.+}', async (c) => {
 			return c.json({ error: 'Invalid oEmbed - no url provided for type photo' }, 400);
 			break;
 
-		case 'video':
 		case 'link':
 		default:
 			// TODO: Fallback to generating an opengraph image if possible?
-			return c.json({ error: 'No oEmbed available.' }, 400);
+			return c.json({ error: 'Unsupported or unknown oembed type.' }, 400);
 	}
 });
 
