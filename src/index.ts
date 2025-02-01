@@ -68,11 +68,12 @@ app.get('/png/:url{.+}', async (c) => {
 		const page = await browser.newPage();
 		await page.setViewport({width: 600, height: 600});
 		await page.setBypassCSP(true);
-		await page.goto(`data:text/html,${oembed.html}`);
+		await page.setContent(oembed.html);
 		await page.waitForNetworkIdle({
 			idleTime: 1000
 		});
 		await new Promise(r=>setTimeout(r, 1000));
+		//return c.body(await page.content());
 
 		const target = (await page.$('body div')) || page;
 
@@ -86,6 +87,7 @@ app.get('/png/:url{.+}', async (c) => {
 		c.header('Content-Type', 'image/png');
 		return c.body(img);
 	} else {
+		// TODO: Fallback to generating an opengraph image if possible?
 		return c.json({ error: 'No oEmbed available.' }, 400);
 	}
 });
